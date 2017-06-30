@@ -19,21 +19,22 @@ public class World extends Frame {
     PrintWriter outputfilewriter;
     MyFrame mf; // MyFrame defines the graphical View/Controller.
     int delay=0, 
-        WSIZE = 500,  
+        WSIZE = 1000,  
         POPSIZEMIN = 5,
         SEED = 3, // Random seed
+        MINIMUMREPRODELAY = 1000,
         NBNEUR = 25; // Number of neurons
     double FOODSPEED = 1.0,  // The speed of the food/poison items.
-           FOODENERGY = .3,
+           FOODENERGY = .5,
            INITENERGY = 1.0,
-           PROBAREPRO = 1.0 / 2000.0,
-           PROBAADDFOOD = 1.0/10.0, //10.0,
+           PROBAREPRO = 1.0 / 3000.0,
+           PROBAADDFOOD = 1.0/5.0, //10.0,
            ENERGYDECREMENT = 1.0 / 500.0, 
            AGENTSPEED = 5.0,  // MAximum agent speed
            AGENTANGULARSPEED = .3,  // Maximum agent angular speed
            EATRADIUS = 10.0,  // How close must we be to be deemed 'eaten'?
            PROBAMUT = .05,      // Probability of mutation for each gene
-           MUTATIONSIZE= 1.0,   // Size parameter of the Cauchy distribution used for the mutations
+           MUTATIONSIZE= .3,   // Size parameter of the Cauchy distribution used for the mutations
            TAU = 5.0,       // Time constant of the recurrent neural network
            MAXW = 10.0;     // Maximum weight 
     ArrayList<FoodBit>  food;
@@ -99,12 +100,14 @@ public class World extends Frame {
             for (Iterator<Agent> iter = population.listIterator(); iter.hasNext(); ) // Iterator allows us to remove elements from the list within the loop
             {
                 Agent a = iter.next();
-                if (R.nextDouble() < PROBAREPRO){
+                if ((a.age > MINIMUMREPRODELAY) && (R.nextDouble() < PROBAREPRO)){
                     Agent child  = new Agent(this);
-                    child.mutate();
+                    child.copyFrom(a);
+                    if (R.nextDouble() < .75)
+                        child.mutate();
+                    child.initialize();
                     children.add(child);
                 }
-
                 a.update();
                 if ((a.getEnergy() < 0) && (population.size() > POPSIZEMIN))
                     iter.remove();
