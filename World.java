@@ -22,13 +22,13 @@ public class World extends Frame {
         WSIZE = 1000,  
         POPSIZEMIN = 5,
         SEED = 3, // Random seed
-        MINIMUMREPRODELAY = 1000,
+        MINIMUMREPRODELAY = 0,
         NBNEUR = 25; // Number of neurons
-    double FOODSPEED = 1.0,  // The speed of the food/poison items.
-           FOODENERGY = .5,
+    double FOODSPEED = 1.0,  // The speed of the food/poison items. NOTE: it is possible that having higher food energy, with fewer food item, might favor 
+           FOODENERGY = .25,
            INITENERGY = 1.0,
-           PROBAREPRO = 1.0 / 3000.0,
-           PROBAADDFOOD = 1.0/5.0, //10.0,
+           PROBAREPRO = 1.0 / 1000.0,
+           PROBAADDFOOD = 1.0/3.0, //10.0,
            ENERGYDECREMENT = 1.0 / 500.0, 
            AGENTSPEED = 5.0,  // MAximum agent speed
            AGENTANGULARSPEED = .3,  // Maximum agent angular speed
@@ -103,7 +103,7 @@ public class World extends Frame {
                 if ((a.age > MINIMUMREPRODELAY) && (R.nextDouble() < PROBAREPRO)){
                     Agent child  = new Agent(this);
                     child.copyFrom(a);
-                    if (R.nextDouble() < .75)
+                    if (R.nextDouble() < .9)
                         child.mutate();
                     child.initialize();
                     children.add(child);
