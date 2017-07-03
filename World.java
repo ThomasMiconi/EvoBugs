@@ -30,10 +30,10 @@ public class World extends Frame {
            SPEEDENERGY = .003,
            FIGHTDAMAGE = 1.0,
            FIGHTNOISE = 1.0,
-           FIGHTENERGY = .001, //1.0,
-           EATBONUS = 50.0, 
+           FIGHTENERGY = .0003, //1.0,
+           EATBONUS = 100.0, 
            PROBAREPRO = 1.0 / 1000.0,
-           PROBAADDFOOD = .75, //1.0/2.0, //10.0,
+           PROBAADDFOOD = 1.0, //1.0/2.0, //10.0,
            ENERGYDECREMENT = 1.0 / 500.0, 
            AGENTSPEED = 2.0,  // MAximum agent speed
            AGENTANGULARSPEED = .15,  // Maximum agent angular speed
