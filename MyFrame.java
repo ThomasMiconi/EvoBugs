@@ -20,7 +20,6 @@ class MyNewCanvas extends Canvas {
         {
             G.fillOval((int)(f.x), (int)f.y, 4, 4);
         }
-                G.setColor(Color.red);
 
         for (Agent a: myWorld.population)
         {

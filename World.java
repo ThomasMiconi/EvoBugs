@@ -22,16 +22,21 @@ public class World extends Frame {
         WSIZE = 1000,  
         POPSIZEMIN = 5,
         SEED = 3, // Random seed
-        MINIMUMREPRODELAY = 0,
+        MINIMUMREPRODELAY = 1000,
         NBNEUR = 25; // Number of neurons
-    double FOODSPEED = 1.0,  // The speed of the food/poison items. NOTE: it is possible that having higher food energy, with fewer food item, might favor 
-           FOODENERGY = .25,
+    double FOODSPEED = .5,  // The speed of the food/poison items. NOTE: it is possible that having higher food energy, with fewer food item, might favor 
+           FOODENERGY = .3,
            INITENERGY = 1.0,
+           SPEEDENERGY = .003,
+           FIGHTDAMAGE = 1.0,
+           FIGHTNOISE = 1.0,
+           FIGHTENERGY = .001, //1.0,
+           EATBONUS = 50.0, 
            PROBAREPRO = 1.0 / 1000.0,
-           PROBAADDFOOD = 1.0/3.0, //10.0,
+           PROBAADDFOOD = .75, //1.0/2.0, //10.0,
            ENERGYDECREMENT = 1.0 / 500.0, 
-           AGENTSPEED = 5.0,  // MAximum agent speed
-           AGENTANGULARSPEED = .3,  // Maximum agent angular speed
+           AGENTSPEED = 2.0,  // MAximum agent speed
+           AGENTANGULARSPEED = .15,  // Maximum agent angular speed
            EATRADIUS = 10.0,  // How close must we be to be deemed 'eaten'?
            PROBAMUT = .05,      // Probability of mutation for each gene
            MUTATIONSIZE= .3,   // Size parameter of the Cauchy distribution used for the mutations
@@ -97,7 +102,7 @@ public class World extends Frame {
                 food.add(new FoodBit(this));
             for (FoodBit f: food)
                 f.update();
-            for (Iterator<Agent> iter = population.listIterator(); iter.hasNext(); ) // Iterator allows us to remove elements from the list within the loop
+            /*for (Iterator<Agent> iter = population.listIterator(); iter.hasNext(); ) // Iterator allows us to remove elements from the list within the loop... But not within update() !
             {
                 Agent a = iter.next();
                 if ((a.age > MINIMUMREPRODELAY) && (R.nextDouble() < PROBAREPRO)){
@@ -111,7 +116,42 @@ public class World extends Frame {
                 a.update();
                 if ((a.getEnergy() < 0) && (population.size() > POPSIZEMIN))
                     iter.remove();
+            }*/
+
+            // The difficulty here is that update() can remove agents from the
+            // population. This would confuse both a for loop and an iterator.
+            // So we need to do the looping ourselves.
+            for (Agent a: population)
+                a.isUpdated = false;
+            while (true){
+                // Find un-updated agent
+                Agent a = null;
+                for (Agent a2:population)
+                    if (a2.isUpdated == false)
+                        a = a2;
+                if (a == null) break;
+                // Update!
+                if ((a.age > MINIMUMREPRODELAY) && (R.nextDouble() < PROBAREPRO)){
+                    // Reproduction!
+                    Agent child  = new Agent(this);
+                    child.copyFrom(a);
+                    if (R.nextDouble() < .9)
+                        child.mutate();
+                    child.initialize();
+                    children.add(child);
+                }
+                a.update();
+                a.isUpdated = true;
             }
+            // Removing agents with energy <0 (that were not already removed due to fighting by update())
+            for (Iterator<Agent> iter = population.listIterator(); iter.hasNext(); ) 
+            {
+                Agent a = iter.next();
+                if ((a.getEnergy() < 0) && (population.size() > POPSIZEMIN))
+                    iter.remove();
+            }
+
+
             while (children.size() > 0)
                 population.add(children.pop());
 
@@ -124,8 +164,9 @@ public class World extends Frame {
             }        
             long oldestage=0; for (Agent a: population) { if (a.age > oldestage) oldestage = a.age; }
             if (numstep % 10000 == 0){
-                System.out.println(population.size()+" "+oldestage);
+                System.out.println(population.size()+" "+oldestage+" "+food.size()+" "+population.get(0).fight);
             }
+            //System.out.println(population.get(1).speed+" "+population.get(1).fight);
             numstep++;
         }
 
