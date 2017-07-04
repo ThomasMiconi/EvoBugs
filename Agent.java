@@ -161,6 +161,8 @@ public class Agent extends Item implements Comparable<Agent>{
             FoodBit fooditem = iter.next();
             sensorL = 4; sensorR = 5;
             dist = getDistanceFrom(fooditem); // getDistanceFrom and getAngleFrom are from ancestor class Item
+            if (dist > 500)
+                continue;
             if (dist < myworld.EATRADIUS)  // Eaten!
             {
                 energy += FOODENERGY;
@@ -171,9 +173,9 @@ public class Agent extends Item implements Comparable<Agent>{
             {
                 angle = getAngleFrom(fooditem);
                 if ((angle-heading < 3.0) && (angle-heading > 0))
-                    neury[sensorL] += 1.0 / (1.0 + .1 * dist);
+                    neury[sensorL] += 1.0 / (.2 + .1 * dist);
                 if ((angle-heading > -3.0) && (angle-heading < 0))
-                    neury[sensorR] += 1.0 / (1.0 + .1 * dist);
+                    neury[sensorR] += 1.0 / (.2 + .1 * dist);
             }
 
         }
@@ -181,14 +183,16 @@ public class Agent extends Item implements Comparable<Agent>{
         {
             Agent other = iter.next();
             dist = getDistanceFrom(other); // Note that this computes distance twice for each pair... inelegant.
+            if (dist > 500)
+                continue;
             sensorL = 6; sensorR = 7;
             angle = getAngleFrom(other);
             if ((angle-heading < 3.0) && (angle-heading > 0))
-                neury[sensorL] += 1.0 / (1.0 + .1 * dist);
+                neury[sensorL] += 1.0 / (.2 + .1 * dist);
             if ((angle-heading > -3.0) && (angle-heading < 0))
-                neury[sensorR] += 1.0 / (1.0 + .1 * dist);
+                neury[sensorR] += 1.0 / (.2 + .1 * dist);
 
-            neury[9] += other.fight / (1.0 + .1 * dist);  // You can hear the other's aggro
+            neury[9] += other.fight / (.2 + .1 * dist);  // You can hear the other's aggro
 
             if ((angle-heading > -3.0) && (angle-heading < 0))
             if (dist < myworld.EATRADIUS)  // Sufficiently close to fight?

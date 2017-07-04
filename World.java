@@ -19,7 +19,7 @@ public class World extends Frame {
     PrintWriter outputfilewriter;
     MyFrame mf; // MyFrame defines the graphical View/Controller.
     int delay=0, 
-        WSIZE = 1000,  
+        WSIZE = 1300,  
         POPSIZEMIN = 5,
         SEED = 3, // Random seed
         MINIMUMREPRODELAY = 1000,
@@ -29,11 +29,11 @@ public class World extends Frame {
            INITENERGY = 1.0,
            SPEEDENERGY = .003,
            FIGHTDAMAGE = 1.0,
+           MEANADDEDFOODPERSTEP = 2.0,
            FIGHTNOISE = 1.0,
            FIGHTENERGY = .0003, //1.0,
            EATBONUS = 100.0, 
            PROBAREPRO = 1.0 / 1000.0,
-           PROBAADDFOOD = 1.0, //1.0/2.0, //10.0,
            ENERGYDECREMENT = 1.0 / 500.0, 
            AGENTSPEED = 2.0,  // MAximum agent speed
            AGENTANGULARSPEED = .15,  // Maximum agent angular speed
@@ -98,8 +98,10 @@ public class World extends Frame {
         LinkedList<Agent> children = new LinkedList<Agent>();
         while (true)
         {
-            if (R.nextDouble() < PROBAADDFOOD)
-                food.add(new FoodBit(this));
+            // Crude approximation of Poisson distribution
+            for (int nn=0; nn < 100; nn++)
+                if (R.nextDouble() < MEANADDEDFOODPERSTEP / 100.0)
+                    food.add(new FoodBit(this));
             for (FoodBit f: food)
                 f.update();
             /*for (Iterator<Agent> iter = population.listIterator(); iter.hasNext(); ) // Iterator allows us to remove elements from the list within the loop... But not within update() !
@@ -135,7 +137,7 @@ public class World extends Frame {
                     // Reproduction!
                     Agent child  = new Agent(this);
                     child.copyFrom(a);
-                    if (R.nextDouble() < .9)
+                    if (R.nextDouble() < .75)
                         child.mutate();
                     child.initialize();
                     children.add(child);
