@@ -19,6 +19,7 @@ public class World extends Frame {
     PrintWriter outputfilewriter;
     MyFrame mf; // MyFrame defines the graphical View/Controller.
     int delay=0, 
+        nbagents=0,
         WSIZE = 1300,  
         POPSIZEMIN = 5,
         SEED = 3, // Random seed
@@ -28,11 +29,11 @@ public class World extends Frame {
            FOODENERGY = .3,
            INITENERGY = 1.0,
            SPEEDENERGY = .003,
-           FIGHTDAMAGE = 1.0,
+           FIGHTDAMAGE = 1.0,    
            MEANADDEDFOODPERSTEP = 2.0,
            FIGHTNOISE = 1.0,
-           FIGHTENERGY = .0003, //1.0,
-           EATBONUS = 100.0, 
+           FIGHTENERGY = .001, //  Increasing both FIGHTENERGY and EATBONUS should favor dichotomy between 'herbivores' and 'carnivores'... 
+           EATBONUS = 200.0, //100.0, 
            PROBAREPRO = 1.0 / 1000.0,
            ENERGYDECREMENT = 1.0 / 500.0, 
            AGENTSPEED = 2.0,  // MAximum agent speed
@@ -59,6 +60,8 @@ public class World extends Frame {
             if (args[numarg].equals( "SEED")) SEED = Integer.parseInt(args[numarg+1]);
             if (args[numarg].equals( "NBNEUR")) NBNEUR = Integer.parseInt(args[numarg+1]);
             if (args[numarg].equals( "TAU")) TAU  = Double.parseDouble(args[numarg+1]);
+            if (args[numarg].equals( "FIGHTDAMAGE")) FIGHTDAMAGE  = Double.parseDouble(args[numarg+1]);
+            if (args[numarg].equals( "FIGHTENERGY")) FIGHTENERGY= Double.parseDouble(args[numarg+1]);
             if (args[numarg].equals( "MAXW")) MAXW  = Double.parseDouble(args[numarg+1]);
             if (args[numarg].equals( "PROBAMUT")) PROBAMUT  = Double.parseDouble(args[numarg+1]);
             if (args[numarg].equals( "MUTATIONSIZE")) MUTATIONSIZE  = Double.parseDouble(args[numarg+1]);
@@ -66,13 +69,12 @@ public class World extends Frame {
         }
         if (VISUAL == 1) delay = 40;
         // suffix for the output files (results and bestagent).
-        FILESUFFIX = "_singleagent_fullsens_nodirectio_noglobalmut_cauchy_MUTATIONSIZE"+MUTATIONSIZE+"_NBNEUR"+NBNEUR+"_MAXW"+MAXW+"_SEED"+SEED;
+        FILESUFFIX = "_nodirectio_noglobalmut_cauchy_MUTATIONSIZE"+MUTATIONSIZE+"_MAXW"+MAXW+"_FIGHTENERGY"+FIGHTENERGY+"_FIGHTDAMAGE"+FIGHTDAMAGE+"_EATBONUS"+EATBONUS+"_SEED"+SEED;
         if (VISUAL == 0) {
             try { outputfilewriter = new PrintWriter("results"+FILESUFFIX+".txt"); } catch(IOException e) {}
         }
         // Initializations and graphics setup...
         R = new Random(SEED);
-        agent = new Agent(this);
         population = new ArrayList<Agent>();
         food = new ArrayList<FoodBit>();
         if (VISUAL == 1)
@@ -82,7 +84,6 @@ public class World extends Frame {
     public static void main(String[] args) {  
         World tf = new World(args);  
         tf.run();
-
     }  
 
 
@@ -92,7 +93,7 @@ public class World extends Frame {
         int FOODSIZEINIT = 20;
         long numstep = 0;
         for (int nn=0; nn < POPSIZEMIN; nn++)
-            population.add(new Agent(this));
+            population.add(new Agent(this, nbagents++));
         for (int nn=0; nn < FOODSIZEINIT; nn++)
             food.add(new FoodBit(this));
         LinkedList<Agent> children = new LinkedList<Agent>();
@@ -135,8 +136,9 @@ public class World extends Frame {
                 // Update!
                 if ((a.age > MINIMUMREPRODELAY) && (R.nextDouble() < PROBAREPRO)){
                     // Reproduction!
-                    Agent child  = new Agent(this);
+                    Agent child  = new Agent(this, nbagents++);
                     child.copyFrom(a);
+                    child.pedigree.add(new Long(a.num));
                     if (R.nextDouble() < .75)
                         child.mutate();
                     child.initialize();
@@ -164,9 +166,12 @@ public class World extends Frame {
             catch ( InterruptedException e )   {
                 System.out.println ( "Exception: " + e.getMessage() );
             }        
-            long oldestage=0; for (Agent a: population) { if (a.age > oldestage) oldestage = a.age; }
+            long oldestage=0; Agent oldestagent=population.get(0); 
+            for (Agent a: population) { if (a.age > oldestage) { oldestage = a.age; oldestagent = a; } }
             if (numstep % 10000 == 0){
                 System.out.println(population.size()+" "+oldestage+" "+food.size()+" "+population.get(0).fight);
+                oldestagent.saveAgent("oldestagent_"+FILESUFFIX+".txt");
+                Agent.savePedigrees(this, "pedigrees_"+FILESUFFIX+".txt");
             }
             //System.out.println(population.get(1).speed+" "+population.get(1).fight);
             numstep++;

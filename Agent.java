@@ -2,6 +2,7 @@
 // NOTE: Much of the spatial logic is contained in class Item, which this clas inherits from.
 
 import java.io.FileInputStream;
+import java.util.ArrayList;
 import java.io.FileOutputStream;
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -13,8 +14,10 @@ import java.io.IOException;
 
 public class Agent extends Item implements Comparable<Agent>{
     double energy;
+    ArrayList<Long> pedigree;
     Random R;
     World myworld;
+    int num;
     double rotation;
     double speed, fight;
     boolean isUpdated;
@@ -26,9 +29,11 @@ public class Agent extends Item implements Comparable<Agent>{
     double[] neury, neurx;
     double dtdivtau , meannormw;
     
-    Agent(World ww)
+    Agent(World ww, int nb)
     {
         super(ww);
+        num = nb;
+        pedigree = new ArrayList<Long>();
         myworld = ww;
         dtdivtau = 1.0 / myw.TAU;
         R = myworld.R;
@@ -78,6 +83,7 @@ public class Agent extends Item implements Comparable<Agent>{
     public void decreaseEnergy() { energy --; } 
     public void copyFrom(Agent A){
         energy = A.energy;
+        pedigree = new ArrayList<Long>(A.pedigree);
         for (int ii=0; ii < NBNEUR; ii++)
             for (int jj=0; jj < NBNEUR; jj++)
                 w[ii][jj] = A.w[ii][jj];
@@ -182,6 +188,8 @@ public class Agent extends Item implements Comparable<Agent>{
         for (Iterator<Agent> iter = myworld.population.listIterator() ; iter.hasNext(); )
         {
             Agent other = iter.next();
+            if (other == this)
+                continue;
             dist = getDistanceFrom(other); // Note that this computes distance twice for each pair... inelegant.
             if (dist > 500)
                 continue;
@@ -194,7 +202,6 @@ public class Agent extends Item implements Comparable<Agent>{
 
             neury[9] += other.fight / (.2 + .1 * dist);  // You can hear the other's aggro
 
-            if ((angle-heading > -3.0) && (angle-heading < 0))
             if (dist < myworld.EATRADIUS)  // Sufficiently close to fight?
             {
                 //neury[9] +=  FIGHTNOISE * other.fight; // You can "hear" other's aggro if it's close enough to hurt you
@@ -273,12 +280,31 @@ public class Agent extends Item implements Comparable<Agent>{
         }
 
     }
+    
     public void draw(Graphics G){
                 G.setColor(new Color((float)(Math.tanh(fight)) , (float)0.0, (float)0.0) );
             G.fillOval((int)(x)-3, (int)y-3, 7, 7);
             G.fillOval((int)(x + 6 * Math.cos(heading))-1, 
                        (int)(y - 6 * Math.sin(heading))-1, // minus to preserve counterclockwise (trigonometric) heading when y grows downwards..
                         2,2);
+    }
+
+    public static void savePedigrees(World w, String fname)
+    {
+        try{
+            PrintWriter writer = new PrintWriter(fname);
+            for (Agent a: w.population)
+            {   
+                for (int col=0; col < a.pedigree.size(); col++)
+                    writer.print(Long.toString(a.pedigree.get(col))+" "); 
+                writer.print("\n");
+            }
+            writer.close();
+        }
+        catch (IOException e) {
+            e.printStackTrace(); System.out.println("Couldn't save pedigree to file "+fname); System.exit(0);            
+        }
+
     }
 
 
