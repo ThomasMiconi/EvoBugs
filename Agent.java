@@ -24,7 +24,10 @@ public class Agent extends Item implements Comparable<Agent>{
     double heading;
     int NBNEUR, WSIZE;
     long age;
+    double SIGMAFOOD = .2; double MULTFOOD = .1;
+    double SIGMAOTHER = .2; double MULTOTHER = .1;
     double MUTATIONSIZE, MAXW, INITENERGY, FOODENERGY, ENERGYDECREMENT, ENERGYDECAY, SPEEDENERGY, FIGHTNOISE, FIGHTDAMAGE, FIGHTENERGY, EATBONUS;
+    double DISTANCEENERGY;
     double[][] w;
     double[] neury, neurx;
     double dtdivtau , meannormw;
@@ -41,6 +44,7 @@ public class Agent extends Item implements Comparable<Agent>{
         NBNEUR = myworld.NBNEUR; 
         WSIZE = myworld.WSIZE;
         MUTATIONSIZE = myworld.MUTATIONSIZE; MAXW = myworld.MAXW;
+        DISTANCEENERGY = myworld.DISTANCEENERGY;
         FOODENERGY = myworld.FOODENERGY;
         INITENERGY = myworld.INITENERGY;
         ENERGYDECREMENT = myworld.ENERGYDECREMENT;
@@ -72,6 +76,10 @@ public class Agent extends Item implements Comparable<Agent>{
                 meannormw += Math.abs(w[ii][jj]);
             }
         meannormw /= (NBNEUR * NBNEUR);
+        SIGMAFOOD = R.nextDouble();
+        MULTFOOD = R.nextDouble();
+        SIGMAOTHER = R.nextDouble();
+        MULTOTHER = R.nextDouble();
     }
     public void resetNeurons() { 
         for (int n=0; n<NBNEUR; n++){
@@ -83,12 +91,16 @@ public class Agent extends Item implements Comparable<Agent>{
     public void increaseEnergy() { energy ++; } 
     public void decreaseEnergy() { energy --; } 
     public void copyFrom(Agent A){
-        energy = A.energy;
+        //energy = A.energy;
         pedigree = new ArrayList<Long>(A.pedigree);
         for (int ii=0; ii < NBNEUR; ii++)
             for (int jj=0; jj < NBNEUR; jj++)
                 w[ii][jj] = A.w[ii][jj];
         meannormw = A.meannormw;
+        SIGMAFOOD = A.SIGMAFOOD;
+        MULTFOOD = A.MULTFOOD;
+        SIGMAOTHER = A.SIGMAOTHER;
+        MULTOTHER = A.MULTOTHER;
     }
     public void initialize()
     {
@@ -141,6 +153,18 @@ public class Agent extends Item implements Comparable<Agent>{
                     w[ii][jj] = -MAXW;
                 meannormw += w[ii][jj];
             }
+        if (R.nextDouble() < myworld.PROBAMUT)
+            SIGMAFOOD += .2 * R.nextGaussian();
+        if (R.nextDouble() < myworld.PROBAMUT)
+            MULTFOOD += .2 * R.nextGaussian();
+        if (R.nextDouble() < myworld.PROBAMUT)
+            SIGMAOTHER += .2 * R.nextGaussian();
+        if (R.nextDouble() < myworld.PROBAMUT)
+            MULTOTHER += .2 * R.nextGaussian();
+        if (SIGMAFOOD < .0001) SIGMAFOOD = .0001;
+        if (MULTFOOD < .0001) MULTFOOD = .0001;
+        if (SIGMAOTHER < .0001) SIGMAOTHER = .0001;
+        if (MULTOTHER < .0001) MULTOTHER = .0001;
         meannormw /= (NBNEUR * NBNEUR);
     }
 
@@ -180,12 +204,13 @@ public class Agent extends Item implements Comparable<Agent>{
             {
                 angle = getAngleFrom(fooditem);
                 if ((angle-heading < 3.0) && (angle-heading > 0))
-                    neury[sensorL] += 1.0 / (.2 + .1 * dist);
+                    neury[sensorL] += 1.0 / (SIGMAFOOD + MULTFOOD * dist);
                 if ((angle-heading > -3.0) && (angle-heading < 0))
-                    neury[sensorR] += 1.0 / (.2 + .1 * dist);
+                    neury[sensorR] += 1.0 / (SIGMAFOOD + MULTFOOD * dist);
             }
 
         }
+        double mindist = 10000.0;
         for (Iterator<Agent> iter = myworld.population.listIterator() ; iter.hasNext(); )
         {
             Agent other = iter.next();
@@ -194,12 +219,15 @@ public class Agent extends Item implements Comparable<Agent>{
             dist = getDistanceFrom(other); // Note that this computes distance twice for each pair... inelegant.
             if (dist > 500)
                 continue;
+            // If you just use the sum of all the disances as a penalty, moving towards the closest agent will have very, very little impact on the total....
+            if (dist < mindist)
+                mindist =  dist;            
             sensorL = 6; sensorR = 7;
             angle = getAngleFrom(other);
             if ((angle-heading < 3.0) && (angle-heading > 0))
-                neury[sensorL] += 1.0 / (.2 + .1 * dist);
+                neury[sensorL] += 1.0 / (SIGMAOTHER + MULTOTHER * dist);
             if ((angle-heading > -3.0) && (angle-heading < 0))
-                neury[sensorR] += 1.0 / (.2 + .1 * dist);
+                neury[sensorR] += 1.0 / (SIGMAOTHER + MULTOTHER * dist);
 
             neury[9] += other.fight / (.2 + .1 * dist);  // You can hear the other's aggro
 
@@ -212,9 +240,13 @@ public class Agent extends Item implements Comparable<Agent>{
                     iter.remove();  
                     energy += EATBONUS;
                 }
+                
 
             }
         }
+        if (mindist > 9999)
+            mindist = 0;
+        energy -= DISTANCEENERGY * mindist  * mindist;
         // The speed/fight/damage is a multiple of the output of the fight/speed neuron, which is exponential-linear of its inputs
         // The cost of speed / fight is the square of this value
         energy -=  fight * fight * FIGHTENERGY;

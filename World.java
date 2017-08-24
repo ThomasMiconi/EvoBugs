@@ -36,6 +36,7 @@ public class World extends Frame {
            SPEEDENERGY = .01,
            FIGHTDAMAGE = 1.0,
            MEANADDEDFOODPERSTEP = 4.0,
+           DISTANCEENERGY = 0.0, // 3e-7
            FIGHTNOISE = 1.0,
            FIGHTENERGY = .001, //1.0,
            EATBONUS = 400.0, //100.0, 
@@ -66,9 +67,12 @@ public class World extends Frame {
             if (args[numarg].equals( "SEED")) SEED = Integer.parseInt(args[numarg+1]);
             if (args[numarg].equals( "WSIZE")) WSIZE = Integer.parseInt(args[numarg+1]);
             if (args[numarg].equals( "NBNEUR")) NBNEUR = Integer.parseInt(args[numarg+1]);
+            if (args[numarg].equals( "DISTANCEENERGY")) DISTANCEENERGY  = Double.parseDouble(args[numarg+1]);
             if (args[numarg].equals( "TAU")) TAU  = Double.parseDouble(args[numarg+1]);
+            if (args[numarg].equals( "FOODENERGY")) FOODENERGY= Double.parseDouble(args[numarg+1]);
             if (args[numarg].equals( "EATBONUS")) EATBONUS  = Double.parseDouble(args[numarg+1]);
             if (args[numarg].equals( "FIGHTDAMAGE")) FIGHTDAMAGE  = Double.parseDouble(args[numarg+1]);
+            if (args[numarg].equals( "MEANADDEDFOODPERSTEP")) MEANADDEDFOODPERSTEP = Double.parseDouble(args[numarg+1]);
             if (args[numarg].equals( "FIGHTENERGY")) FIGHTENERGY= Double.parseDouble(args[numarg+1]);
             if (args[numarg].equals( "SPEEDENERGY")) SPEEDENERGY= Double.parseDouble(args[numarg+1]);
             if (args[numarg].equals( "MAXW")) MAXW  = Double.parseDouble(args[numarg+1]);
@@ -79,7 +83,8 @@ public class World extends Frame {
         }
         if (VISUAL == 1) delay = 40;
         // suffix for the output files (results and bestagent).
-        FILESUFFIX = "_nodirectio_noglobalmut_cauchy_NoSelfEnergySensor_WSIZE"+WSIZE+"_MUTATIONSIZE"+MUTATIONSIZE+"_MAXW"+MAXW+"_FIGHTENERGY"+FIGHTENERGY+"_FIGHTDAMAGE"+FIGHTDAMAGE+"_EATBONUS"+EATBONUS+"_SPEEDENERGY"+SPEEDENERGY+"_ENERGYDECAY"+ENERGYDECAY+"_EATBONUS"+EATBONUS+"_SEED"+SEED;
+        FILESUFFIX = "_nodirectio_noglobalmut_cauchy_NoSelfEnergySensor_WSIZE"+WSIZE+"_MUTATIONSIZE"+MUTATIONSIZE+"_MAXW"+MAXW+"_FIGHTENERGY"+FIGHTENERGY+"_FIGHTDAMAGE"+FIGHTDAMAGE+"_EATBONUS" + 
+                                EATBONUS+"_SPEEDENERGY"+SPEEDENERGY+"_ENERGYDECAY"+ENERGYDECAY+"_EATBONUS"+EATBONUS+"_DISTANCEENERGY"+DISTANCEENERGY+"_SEED"+SEED;
         if (VISUAL == 0) {
             try { outputfilewriter = new PrintWriter("results"+FILESUFFIX+".txt"); } catch(IOException e) {}
         }
@@ -180,6 +185,39 @@ public class World extends Frame {
             for (Agent a: population) { if (a.age > oldestage) { oldestage = a.age; oldestagent = a; } }
             if (numstep % 10000 == 0){
                 System.out.println(population.size()+" "+oldestage+" "+food.size()+" "+population.get(0).fight);
+                
+                double meansigmafood=0, meanmultfood=0, meansigmafoodsq=0, meanmultfoodsq=0;
+                for (Agent a: population)
+                {
+                    meansigmafood += a.SIGMAFOOD; meanmultfood += a.MULTFOOD;
+                }
+                meansigmafood /= (double)population.size();
+                meanmultfood /= (double)population.size();
+                for (Agent a: population)
+                {
+                    meansigmafoodsq += (a.SIGMAFOOD - meansigmafood) * (a.SIGMAFOOD - meansigmafood) ; 
+                    meanmultfoodsq += (a.MULTFOOD - meanmultfood) * (a.MULTFOOD - meanmultfood) ;
+                }
+                meansigmafoodsq /= (double)population.size();
+                meanmultfoodsq /= (double)population.size();
+
+                double meansigma=0, meanmult=0, meansigmasq=0, meanmultsq=0;
+                for (Agent a: population)
+                {
+                    meansigma += a.SIGMAOTHER; meanmult += a.MULTOTHER;
+                }
+                meansigma /= (double)population.size();
+                meanmult /= (double)population.size();
+                for (Agent a: population)
+                {
+                    meansigmasq += (a.SIGMAOTHER - meansigma) * (a.SIGMAOTHER - meansigma) ; 
+                    meanmultsq += (a.MULTOTHER - meanmult) * (a.MULTOTHER - meanmult) ;
+                }
+                meansigmasq /= (double)population.size();
+                meanmultsq /= (double)population.size();
+
+                System.out.println("Sigmaother mean, std: "+meansigma+", "+meansigmasq+". Multother mean, std: "+meanmult+", "+meanmultsq);
+                System.out.println("Sigmafood mean, std: "+meansigmafood+", "+meansigmafoodsq+". Multfood mean, std: "+meanmultfood+", "+meanmultfoodsq);
                 oldestagent.saveAgent("oldestagent_"+FILESUFFIX+".txt");
                 Agent.savePedigrees(this, "pedigrees_"+FILESUFFIX+".txt");
             }
