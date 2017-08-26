@@ -5,8 +5,7 @@
 
 import java.awt.*;  
 import java.util.Iterator;
-import java.io.PrintWriter;
-import java.io.IOException;
+import java.io.*;
 import java.awt.event.*;  
 import java.util.Random;
 import java.util.ArrayList;
@@ -16,7 +15,7 @@ import java.util.Collections;
 // The World class is the overall controller.
 // While it defines the overall algorithm, much of the actual logic occurs in
 // classes Agent, Item, Agent and FoodItem.
-public class World extends Frame {
+public class World {
     // First, various definitions....
     String FILESUFFIX;
     String FILENAME = "";
@@ -38,6 +37,7 @@ public class World extends Frame {
            MEANADDEDFOODPERSTEP = 4.0,
            DISTANCEENERGY = 0.0, // 3e-7
            FIGHTNOISE = 1.0,
+           NEURENERGY = 1e-5,
            FIGHTENERGY = .001, //1.0,
            EATBONUS = 400.0, //100.0, 
            PROBAREPRO = 1.0 / 1000.0,
@@ -62,7 +62,7 @@ public class World extends Frame {
         int numarg = 0;
         if (args.length % 2 != 0) { throw new RuntimeException("Each argument must be provided with its value"); }
         while (numarg < args.length) {
-            if (args[numarg].equals( "FILENAME")) { VISUAL = 1 ; FILENAME  = args[numarg+1]; delay=40; }
+            if (args[numarg].equals( "FILENAME")) { VISUAL = 1 ; FILENAME  = args[numarg+1]; delay=0; }
             if (args[numarg].equals( "VISUAL")) { VISUAL  = Integer.parseInt(args[numarg+1]); if ((VISUAL !=0) && (VISUAL != 1)) throw new RuntimeException("VISUAL must be 0 or 1!");}
             if (args[numarg].equals( "SEED")) SEED = Integer.parseInt(args[numarg+1]);
             if (args[numarg].equals( "WSIZE")) WSIZE = Integer.parseInt(args[numarg+1]);
@@ -75,16 +75,17 @@ public class World extends Frame {
             if (args[numarg].equals( "MEANADDEDFOODPERSTEP")) MEANADDEDFOODPERSTEP = Double.parseDouble(args[numarg+1]);
             if (args[numarg].equals( "FIGHTENERGY")) FIGHTENERGY= Double.parseDouble(args[numarg+1]);
             if (args[numarg].equals( "SPEEDENERGY")) SPEEDENERGY= Double.parseDouble(args[numarg+1]);
+            if (args[numarg].equals( "NEURENERGY")) NEURENERGY= Double.parseDouble(args[numarg+1]);
             if (args[numarg].equals( "MAXW")) MAXW  = Double.parseDouble(args[numarg+1]);
             if (args[numarg].equals( "PROBAMUT")) PROBAMUT  = Double.parseDouble(args[numarg+1]);
             if (args[numarg].equals( "MUTATIONSIZE")) MUTATIONSIZE  = Double.parseDouble(args[numarg+1]);
             if (args[numarg].equals( "ENERGYDECAY")) ENERGYDECAY = Double.parseDouble(args[numarg+1]);
             numarg += 2;
         }
-        if (VISUAL == 1) delay = 40;
+        if (VISUAL == 1) delay = 0;
         // suffix for the output files (results and bestagent).
-        FILESUFFIX = "_nodirectio_noglobalmut_cauchy_NoSelfEnergySensor_WSIZE"+WSIZE+"_MUTATIONSIZE"+MUTATIONSIZE+"_MAXW"+MAXW+"_FIGHTENERGY"+FIGHTENERGY+"_FIGHTDAMAGE"+FIGHTDAMAGE+"_EATBONUS" + 
-                                EATBONUS+"_SPEEDENERGY"+SPEEDENERGY+"_ENERGYDECAY"+ENERGYDECAY+"_EATBONUS"+EATBONUS+"_DISTANCEENERGY"+DISTANCEENERGY+"_SEED"+SEED;
+        FILESUFFIX = "_nodirectio_noglobalmut_cauchy_validneur_"+WSIZE+"_MUTSIZE"+MUTATIONSIZE+"_MAXW"+MAXW+"_FIGHTENERGY"+FIGHTENERGY+"_FIGHTDAMAGE"+FIGHTDAMAGE+"_EATBONUS" + 
+                                EATBONUS+"_SPEEDENERGY"+SPEEDENERGY+"_ENERGYDECAY"+ENERGYDECAY+"_EATBONUS"+EATBONUS+"_DISTANCEENERGY"+DISTANCEENERGY+"_FOODENERGY"+FOODENERGY+"_MAF"+MEANADDEDFOODPERSTEP+"_NEURENERGY"+NEURENERGY+"_SEED"+SEED;
         if (VISUAL == 0) {
             try { outputfilewriter = new PrintWriter("results"+FILESUFFIX+".txt"); } catch(IOException e) {}
         }
@@ -102,6 +103,50 @@ public class World extends Frame {
     }  
 
 
+    public void savePop()
+    {
+        String FNAME = "pop_"+FILESUFFIX+".ser";
+        //ArrayList<Agent>  popfromfile; 
+        try {
+            FileOutputStream fileOut =
+                new FileOutputStream(FNAME);
+            ObjectOutputStream out = new ObjectOutputStream(fileOut);
+            out.writeObject(population);
+            out.close();
+            fileOut.close();
+            System.out.printf("Serialized population data is saved in "+FNAME);
+        }catch(IOException i) {
+            i.printStackTrace();
+        }
+    }
+    public void readPop()
+    {
+        String FNAME = "pop_"+FILESUFFIX+".ser";
+        ArrayList<Agent>  popfromfile = null; 
+        try {
+            FileInputStream fileIn = new FileInputStream(FNAME);
+            ObjectInputStream in = new ObjectInputStream(fileIn);
+            popfromfile = (ArrayList<Agent>) in.readObject();
+            in.close();
+            fileIn.close();
+        }catch(IOException i) {
+            i.printStackTrace();
+            return;
+        }catch(ClassNotFoundException c) {
+            System.out.println("Population / Agent class not found");
+            c.printStackTrace();
+            return;
+        }
+        population = new ArrayList<Agent>();
+        for (int ii=0; ii < popfromfile.size(); ii++){
+            Agent a1 = popfromfile.get(ii);
+            Agent a2 = new Agent(this, ii);
+            a2.copyFrom(a1);
+            a2.num= a1.num;
+            population.add(a2);
+        }
+
+    }
 
     public void run()
     {
@@ -113,7 +158,9 @@ public class World extends Frame {
             food.add(new FoodBit(this));
         LinkedList<Agent> children = new LinkedList<Agent>();
         while (true)
+        //for (int ttt=0; ttt < 10000; ttt++)
         {
+            //System.out.println(ttt);
             // Crude approximation of Poisson distribution
             for (int nn=0; nn < 100; nn++)
                 if (R.nextDouble() < MEANADDEDFOODPERSTEP / 100.0)
@@ -139,6 +186,7 @@ public class World extends Frame {
             // The difficulty here is that update() can remove agents from the
             // population. This would confuse both a for loop and an iterator.
             // So we need to do the looping ourselves.
+            // NOTE: maybe a better way would be to just determine energy transfers in Agent.java's update(), and do all the actual removals here?...
             for (Agent a: population)
                 a.isUpdated = false;
             while (true){
@@ -169,10 +217,10 @@ public class World extends Frame {
                 if ((a.getEnergy() < 0) && (population.size() > POPSIZEMIN))
                     iter.remove();
             }
-
-
             while (children.size() > 0)
                 population.add(children.pop());
+
+
 
             if ((VISUAL > 0) && (delay > 0)){
                 mf.cnv.repaint();
@@ -184,118 +232,21 @@ public class World extends Frame {
             long oldestage=0; Agent oldestagent=population.get(0); 
             for (Agent a: population) { if (a.age > oldestage) { oldestage = a.age; oldestagent = a; } }
             if (numstep % 10000 == 0){
+
+                savePop();
+
                 System.out.println(population.size()+" "+oldestage+" "+food.size()+" "+population.get(0).fight);
-                
-                double meansigmafood=0, meanmultfood=0, meansigmafoodsq=0, meanmultfoodsq=0;
-                for (Agent a: population)
-                {
-                    meansigmafood += a.SIGMAFOOD; meanmultfood += a.MULTFOOD;
-                }
-                meansigmafood /= (double)population.size();
-                meanmultfood /= (double)population.size();
-                for (Agent a: population)
-                {
-                    meansigmafoodsq += (a.SIGMAFOOD - meansigmafood) * (a.SIGMAFOOD - meansigmafood) ; 
-                    meanmultfoodsq += (a.MULTFOOD - meanmultfood) * (a.MULTFOOD - meanmultfood) ;
-                }
-                meansigmafoodsq /= (double)population.size();
-                meanmultfoodsq /= (double)population.size();
-
-                double meansigma=0, meanmult=0, meansigmasq=0, meanmultsq=0;
-                for (Agent a: population)
-                {
-                    meansigma += a.SIGMAOTHER; meanmult += a.MULTOTHER;
-                }
-                meansigma /= (double)population.size();
-                meanmult /= (double)population.size();
-                for (Agent a: population)
-                {
-                    meansigmasq += (a.SIGMAOTHER - meansigma) * (a.SIGMAOTHER - meansigma) ; 
-                    meanmultsq += (a.MULTOTHER - meanmult) * (a.MULTOTHER - meanmult) ;
-                }
-                meansigmasq /= (double)population.size();
-                meanmultsq /= (double)population.size();
-
-                System.out.println("Sigmaother mean, std: "+meansigma+", "+meansigmasq+". Multother mean, std: "+meanmult+", "+meanmultsq);
-                System.out.println("Sigmafood mean, std: "+meansigmafood+", "+meansigmafoodsq+". Multfood mean, std: "+meanmultfood+", "+meanmultfoodsq);
-                oldestagent.saveAgent("oldestagent_"+FILESUFFIX+".txt");
+                double[] sensorparams = Utils.getSensorParams(population);
+                System.out.println("Sigmaother mean, var: "+sensorparams[6]+", "+sensorparams[7]+". Multother mean, var: "+sensorparams[4]+", "+sensorparams[5]);
+                System.out.println("Sigmafood mean, var: "+sensorparams[2]+", "+sensorparams[3]+". Multfood mean, var: "+sensorparams[0]+", "+sensorparams[1]);
+                //oldestagent.saveAgent("oldestagent_"+FILESUFFIX+".txt");
                 Agent.savePedigrees(this, "pedigrees_"+FILESUFFIX+".txt");
             }
             //System.out.println(population.get(1).speed+" "+population.get(1).fight);
             numstep++;
         }
+        //System.exit(0);
 
 
     }
-    /*
-       public void runOld()
-       {
-       numgen = 0; bestscoreever = 0;
-       for (int i=0; i<POPSIZE; i++) population.get(i).randomizeNet();
-    //while (numgen < 10)
-    while (true)
-    {
-    // Note that we re-evaluate the champion agents at each generation, even though we already know their score! OTOH, score evaluation is quite noisy, so it's probably worth it.
-    for (int numagent=0; numagent < POPSIZE; numagent++)
-    {
-    // Each agent is evaluated in turn by putting it into the 'active' agent.
-    agent.copyFrom(population.get(numagent));
-    // If we are currently visualizing an agent saved in a 'bestagent' file (provided as command line argument), we only ever show this one.
-    if (FILENAME.length() > 0) 
-    agent.readAgent(FILENAME);
-    agent.initialize();
-    // Which is food, which is poison? Randomly set.
-    POISONFIRSTHALF = R.nextInt(2);
-
-    // Evaluation :
-    for (int numstep=0; numstep < NBSTEPSPEREVAL; numstep++)
-    {
-    // Food and poison switch at mid-trial !
-    if (numstep == (int)(NBSTEPSPEREVAL / 2))
-    POISONFIRSTHALF = 1 - POISONFIRSTHALF;
-    for (int n=0; n < food.length; n++)
-    food[n].update();
-    agent.update(); // Takes care of sensors, network update, score update, motion, etc.
-
-    // If using graphics, 
-    // we need a delay between refreshes if we want to see what's going on...
-    // But we can set it to 0 (with the buttons) if we just want
-    // the algorithm to proceed fast.
-    try{ Thread.sleep(delay); }
-    catch ( InterruptedException e )   {
-    System.out.println ( "Exception: " + e.getMessage() );
-    }        
-    if (VISUAL > 0){
-    mf.cnv.repaint();
-    mf.scorelabel.setText("Score: "+agent.getScore());
-    }
-    }
-    population.get(numagent).copyFrom(agent); // Mostly to get back the total score.
-    if (FILENAME.length() > 0) System.out.println(agent.getScore());
-    }
-    Collections.sort(population); // This will sort population by ascending order of the scores, because Agent implements Comparable.
-    Collections.reverse(population); // We want descending order.
-    bestscore = population.get(0).getScore();
-    //System.out.println("Gen "+numgen+": "+bestscore+" "+population.get(1).getScore());
-    System.out.println(bestscore);
-    if (FILENAME.length() == 0){
-    outputfilewriter.println(bestscore); outputfilewriter.flush();
-    population.get(0).saveAgent("bestagent"+FILESUFFIX+".txt");
-    if (population.get(0).getScore() > bestscoreever)
-    {
-    bestscoreever = population.get(0).getScore();
-    population.get(0).saveAgent("besteveragent"+FILESUFFIX+".txt");
-    }
-    }
-
-    for (int n=NBBEST; n<POPSIZE; n++)
-    {
-    population.get(n).copyFrom(population.get(R.nextInt(NBBEST)));
-    population.get(n).mutate();
-    }
-    numgen ++;
-    }
-    //System.exit(0);
-       }
-       */
 }  

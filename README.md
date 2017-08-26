@@ -44,3 +44,13 @@ However, java World VISUAL 1 SEED 5 FIGHTENERGY .03 EATBONUS 100000.0 FIGHTDAMAG
 And several more coalescing within 40-80 lifetimes...
 But the diversity is not easy to see - seems mostly sessile, with apparently a few high-aggro high-speed darting through, rarely... Note that only a small portion of the space can be seen... but still...
 Need to be able to save the population, and show half-sized workld for visual!
+
+== 
+
+(With valid-neur mask...)
+
+java World VISUAL 1 SEED 5 FIGHTENERGY .03 EATBONUS 100000.0 FIGHTDAMAGE 4.0 SPEEDENERGY .003 ENERGYDECAY .995 WSIZE 3000 NEURENERGY 1e-6 FOODENERGY .6 
+
+Produces durable diversity in both pedigrees and visually....
+
+Apparently boring sessile/hunters, but ACTUALLY some of the "sessiles" turn out to become mobile + high-aggro when a hunter touches them!

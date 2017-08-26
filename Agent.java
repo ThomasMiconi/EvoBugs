@@ -12,26 +12,46 @@ import java.util.Random;
 import java.util.Iterator;
 import java.io.IOException;
 
-public class Agent extends Item implements Comparable<Agent>{
+public class Agent extends Item implements java.io.Serializable , Comparable<Agent>{
     double energy;
     ArrayList<Long> pedigree;
-    Random R;
-    World myworld;
+    transient Random R;
+    transient World myworld;
     int num;
     double rotation;
     double speed, fight;
     boolean isUpdated;
     double heading;
-    int NBNEUR, WSIZE;
     long age;
     double SIGMAFOOD = .2; double MULTFOOD = .1;
     double SIGMAOTHER = .2; double MULTOTHER = .1;
-    double MUTATIONSIZE, MAXW, INITENERGY, FOODENERGY, ENERGYDECREMENT, ENERGYDECAY, SPEEDENERGY, FIGHTNOISE, FIGHTDAMAGE, FIGHTENERGY, EATBONUS;
-    double DISTANCEENERGY;
     double[][] w;
     double[] neury, neurx;
+    int[] validneur;
     double dtdivtau , meannormw;
-    
+
+    Agent() // No-arg constructor for serialization
+    {
+        //super(ww);
+        /*num = nb;
+        pedigree = new ArrayList<Long>();
+        R= null;
+        dtdivtau = 1.0 / myw.TAU;
+        validneur = new int[myworld.NBNEUR]; for (int ii=0; ii < myworld.NBNEUR; ii++) validneur[ii] = 0;
+        neurx = new double[myworld.NBNEUR];
+        neury = new double[myworld.NBNEUR];
+        for (int ii=0; ii < myworld.NBNEUR; ii++){ 
+            neury[ii] = 0.0; neurx[ii] = 0.0; 
+        }
+        w = new double[myworld.NBNEUR][myworld.NBNEUR];
+        speed=0.0; fight=0;
+        rotation=0.0;
+        heading = R.nextDouble() * 2 * Math.PI;
+        randomizeNet();
+        initialize();*/
+    }
+
+
     Agent(World ww, int nb)
     {
         super(ww);
@@ -41,22 +61,13 @@ public class Agent extends Item implements Comparable<Agent>{
         dtdivtau = 1.0 / myw.TAU;
         R = myworld.R;
         energy = 0; age=0;
-        NBNEUR = myworld.NBNEUR; 
-        WSIZE = myworld.WSIZE;
-        MUTATIONSIZE = myworld.MUTATIONSIZE; MAXW = myworld.MAXW;
-        DISTANCEENERGY = myworld.DISTANCEENERGY;
-        FOODENERGY = myworld.FOODENERGY;
-        INITENERGY = myworld.INITENERGY;
-        ENERGYDECREMENT = myworld.ENERGYDECREMENT;
-        ENERGYDECAY = myworld.ENERGYDECAY;
-        SPEEDENERGY = myworld.SPEEDENERGY;
-        FIGHTNOISE = myworld.FIGHTNOISE; FIGHTENERGY = myworld.FIGHTENERGY; FIGHTDAMAGE = myworld.FIGHTDAMAGE; EATBONUS = myworld.EATBONUS;
-        neurx = new double[NBNEUR];
-        neury = new double[NBNEUR];
-        for (int ii=0; ii < NBNEUR; ii++){ 
+        validneur = new int[myworld.NBNEUR]; for (int ii=0; ii < myworld.NBNEUR; ii++) validneur[ii] = 0;
+        neurx = new double[myworld.NBNEUR];
+        neury = new double[myworld.NBNEUR];
+        for (int ii=0; ii < myworld.NBNEUR; ii++){ 
             neury[ii] = 0.0; neurx[ii] = 0.0; 
         }
-        w = new double[NBNEUR][NBNEUR];
+        w = new double[myworld.NBNEUR][myworld.NBNEUR];
         speed=0.0; fight=0;
         rotation=0.0;
         heading = R.nextDouble() * 2 * Math.PI;
@@ -69,33 +80,37 @@ public class Agent extends Item implements Comparable<Agent>{
     }
     public void randomizeNet(){
         meannormw = 0;
-        for (int ii=0; ii < NBNEUR; ii++)
-            for (int jj=0; jj < NBNEUR; jj++){
+        for (int ii=0; ii < myworld.NBNEUR; ii++)
+            for (int jj=0; jj < myworld.NBNEUR; jj++){
                 w[ii][jj] = (2.0 * R.nextDouble() - 1.0) ;
-                //w[ii][jj] = (2.0 * R.nextDouble() - 1.0) / Math.sqrt((double)NBNEUR);
+                //w[ii][jj] = (2.0 * R.nextDouble() - 1.0) / Math.sqrt((double)myworld.NBNEUR);
                 meannormw += Math.abs(w[ii][jj]);
             }
-        meannormw /= (NBNEUR * NBNEUR);
+        meannormw /= (myworld.NBNEUR * myworld.NBNEUR);
         SIGMAFOOD = R.nextDouble();
         MULTFOOD = R.nextDouble();
         SIGMAOTHER = R.nextDouble();
         MULTOTHER = R.nextDouble();
+        for (int ii=0; ii < myworld.NBNEUR; ii++)
+            validneur[ii]= R.nextInt(2);
     }
     public void resetNeurons() { 
-        for (int n=0; n<NBNEUR; n++){
+        for (int n=0; n<myworld.NBNEUR; n++){
             neurx[n] = 0;
             neury[n] = 0;
         }
     }
-    public void resetEnergy() { energy = INITENERGY; } 
+    public void resetEnergy() { energy = myworld.INITENERGY; } 
     public void increaseEnergy() { energy ++; } 
     public void decreaseEnergy() { energy --; } 
     public void copyFrom(Agent A){
-        //energy = A.energy;
+        energy = A.energy; // Sometimes this won't be wanted, but in these situations you will have to call initialize() after the copy anyway.
         pedigree = new ArrayList<Long>(A.pedigree);
-        for (int ii=0; ii < NBNEUR; ii++)
-            for (int jj=0; jj < NBNEUR; jj++)
+        for (int ii=0; ii < myworld.NBNEUR; ii++){
+            validneur[ii] = A.validneur[ii];
+            for (int jj=0; jj < myworld.NBNEUR; jj++)
                 w[ii][jj] = A.w[ii][jj];
+        }
         meannormw = A.meannormw;
         SIGMAFOOD = A.SIGMAFOOD;
         MULTFOOD = A.MULTFOOD;
@@ -116,41 +131,46 @@ public class Agent extends Item implements Comparable<Agent>{
     {
         double tempx;
             int startcol;
-        for (int row=0; row < NBNEUR; row++){
+        for (int row=0; row < myworld.NBNEUR; row++){
+            if (validneur[row] == 0)
+                continue; // Has little effect on performance. Apparently network running is not a major cost... Distance/angle computations are!
             tempx = 0;
-            for (int col=0; col < NBNEUR; col++)
-                if ((row > 2) || ( col > 10)) // The actuators can't receive direct sensor input! But note this prevent hard biases into the actuators too...
-                //if ((row > 2) || (col > 9)) // The actuators can't receive direct sensor or actuator input!
+            for (int col=0; col < myworld.NBNEUR; col++)
+                if ((row > 2) || ( col > 10)) // The actuators can't receive direct sensor / actuator input! But note this prevent hard biases into the actuators too...
                     tempx += w[row][col] * neury[col];
             neurx[row] += dtdivtau * (tempx - neurx[row]);
         }
-        for (int row=0; row < NBNEUR; row++)
+        for (int row=0; row < myworld.NBNEUR; row++){
             if ((row ==0) || (row == 2))
                 neury[row] = explin(neurx[row]);
             else
                 neury[row] = Math.tanh(neurx[row]);
+        }
         //neury[0] = (1.0 + neury[0]) / 2.0;  // Speed is positive
         //neury[2] = (1.0 + neury[2]) / 2.0;  // So is fight
     }
     public void mutate()
     {
         meannormw = 0;
-        for (int ii=0; ii < NBNEUR; ii++)
-            for (int jj=0; jj < NBNEUR; jj++)
+        for (int ii=0; ii < myworld.NBNEUR; ii++)
+            if (R.nextDouble() < myworld.PROBAMUT)
+                validneur[ii] = 1 - validneur[ii];
+        for (int ii=0; ii < myworld.NBNEUR; ii++)
+            for (int jj=0; jj < myworld.NBNEUR; jj++)
             {
-                ///w[ii][jj] += MUTATIONSIZE * R.nextGaussian();
+                ///w[ii][jj] += myworld.MUTATIONSIZE * R.nextGaussian();
                 //w[ii][jj] *= .99;
                 if (R.nextDouble() < myworld.PROBAMUT){
                     double cauchy = Math.tan((R.nextDouble() - .5) * Math.PI);
-                    w[ii][jj] += MUTATIONSIZE * cauchy;
+                    w[ii][jj] += myworld.MUTATIONSIZE * cauchy;
                     w[ii][jj] *= .99;
-                //    w[ii][jj] += myworld.MUTATIONSIZE * R.nextGaussian();
+                //    w[ii][jj] += myworld.myworld.MUTATIONSIZE * R.nextGaussian();
                 //    w[ii][jj] *= .99;
                 }
-                if (w[ii][jj] > MAXW)
-                    w[ii][jj] = MAXW;
-                if (w[ii][jj] < -MAXW)
-                    w[ii][jj] = -MAXW;
+                if (w[ii][jj] > myworld.MAXW)
+                    w[ii][jj] = myworld.MAXW;
+                if (w[ii][jj] < -myworld.MAXW)
+                    w[ii][jj] = -myworld.MAXW;
                 meannormw += w[ii][jj];
             }
         if (R.nextDouble() < myworld.PROBAMUT)
@@ -165,7 +185,8 @@ public class Agent extends Item implements Comparable<Agent>{
         if (MULTFOOD < .0001) MULTFOOD = .0001;
         if (SIGMAOTHER < .0001) SIGMAOTHER = .0001;
         if (MULTOTHER < .0001) MULTOTHER = .0001;
-        meannormw /= (NBNEUR * NBNEUR);
+        meannormw /= (myworld.NBNEUR * myworld.NBNEUR);
+
     }
 
 
@@ -196,7 +217,7 @@ public class Agent extends Item implements Comparable<Agent>{
                 continue;
             if (dist < myworld.EATRADIUS)  // Eaten!
             {
-                energy += FOODENERGY;
+                energy += myworld.FOODENERGY;
                     //neury[8] = 10.0;  // Would be interesting to know if this improves performance....
                     iter.remove();
             }
@@ -233,28 +254,41 @@ public class Agent extends Item implements Comparable<Agent>{
 
             if (dist < myworld.EATRADIUS)  // Sufficiently close to fight?
             {
-                //neury[9] +=  FIGHTNOISE * other.fight; // You can "hear" other's aggro if it's close enough to hurt you
-                other.energy -= FIGHTDAMAGE * (fight - other.fight);  // Note that the fighting is based on the previous step's activity... Some will already be updated, others not!
+                //neury[9] +=  myworld.FIGHTNOISE * other.fight; // You can "hear" other's aggro if it's close enough to hurt you
+                other.energy -= myworld.FIGHTDAMAGE * (fight - other.fight);  // Note that the fighting is based on the previous step's activity... Some will already be updated, others not!
                 if ((other.energy < 0) && (fight > other.fight) && (myworld.population.size() > myworld.POPSIZEMIN))
                 {
                     iter.remove();  
-                    energy += EATBONUS;
+                    energy += myworld.EATBONUS;
                 }
                 
 
+                validneur = new int[myworld.NBNEUR]; for (int ii=0; ii < myworld.NBNEUR; ii++) validneur[ii] = 0;
+                validneur[0]= 1; validneur[1]=1; validneur[2] = 1; 
             }
         }
         if (mindist > 9999)
             mindist = 0;
-        energy -= DISTANCEENERGY * mindist  * mindist;
+        energy -= myworld.DISTANCEENERGY * mindist  * mindist;  // Generally not used (myworld.DISTANCEENERGY = 0)
+        // Energy cost grows with square of number of actually used neurons 
+        int nbvalidneur=0; for (int ii=0; ii < myworld.NBNEUR; ii++) nbvalidneur += validneur[ii];
+        energy -= myworld.NEURENERGY * nbvalidneur * nbvalidneur;
         // The speed/fight/damage is a multiple of the output of the fight/speed neuron, which is exponential-linear of its inputs
         // The cost of speed / fight is the square of this value
-        energy -=  fight * fight * FIGHTENERGY;
+        energy -=  fight * fight * myworld.FIGHTENERGY;
         neury[8] = .1 * energy;
+        
+        for (int ii=0; ii < myworld.NBNEUR; ii++) {  if (validneur[ii] == 0) {neury[ii] = 0; neurx[ii] = 0; } }
         runNetwork();
+        for (int ii=0; ii < myworld.NBNEUR; ii++) {  if (validneur[ii] == 0) {neury[ii] = 0; neurx[ii] = 0; } }
+        
+        for (int ii=0; ii < myworld.NBNEUR; ii++) {  
+            assert ((validneur[ii] == 0)  || (validneur[ii] == 1));
+        }
+        
         // Determine motion based on neural network outputs:
         speed =  neury[0];  // Speed and fight are guaranteed to lie within [0,1]
-        energy -= SPEEDENERGY * speed * speed;
+        energy -= myworld.SPEEDENERGY * speed * speed;
         speed = myworld.AGENTSPEED * speed;
         rotation = myworld.AGENTANGULARSPEED * neury[1];
         heading += rotation;
@@ -270,8 +304,8 @@ public class Agent extends Item implements Comparable<Agent>{
             x -= myworld.WSIZE;
         if (x < 0)
             x += myworld.WSIZE;
-        energy -= ENERGYDECREMENT;
-        energy *= ENERGYDECAY;
+        energy -= myworld.ENERGYDECREMENT;
+        energy *= myworld.ENERGYDECAY;
     }
     
     public void readAgent(String fname)
@@ -281,12 +315,12 @@ public class Agent extends Item implements Comparable<Agent>{
             BufferedReader in
                 = new BufferedReader(new FileReader(fname));
 
-            for (int row=0; row < NBNEUR; row++)
+            for (int row=0; row < myworld.NBNEUR; row++)
             {   
                 String strs[] = in.readLine().split(" ");
-                if (strs.length != NBNEUR)
+                if (strs.length != myworld.NBNEUR)
                     throw new RuntimeException("Data file has wrong number of neurons! (strs.length is "+strs.length+", strs[0] is "+strs[0]+", row "+row+")");
-                for (int col=0; col < NBNEUR; col++)
+                for (int col=0; col < myworld.NBNEUR; col++)
                     this.w[row][col] = Double.parseDouble(strs[col]);
             }
             in.close();
@@ -300,9 +334,9 @@ public class Agent extends Item implements Comparable<Agent>{
     {   
         try{
             PrintWriter writer = new PrintWriter(fname);
-            for (int row=0; row < NBNEUR; row++)
+            for (int row=0; row < myworld.NBNEUR; row++)
             {   
-                for (int col=0; col < NBNEUR; col++)
+                for (int col=0; col < myworld.NBNEUR; col++)
                     writer.print(Double.toString(this.w[row][col])+" "); 
                 writer.print("\n");
             }
@@ -316,9 +350,9 @@ public class Agent extends Item implements Comparable<Agent>{
     
     public void draw(Graphics G){
                 G.setColor(new Color((float)(Math.tanh(fight)) , (float)0.0, (float)0.0) );
-            G.fillOval((int)(x)-3, (int)y-3, 7, 7);
-            G.fillOval((int)(x + 6 * Math.cos(heading))-1, 
-                       (int)(y - 6 * Math.sin(heading))-1, // minus to preserve counterclockwise (trigonometric) heading when y grows downwards..
+            G.fillOval((int)(x/2.0)-3, (int)(y/2.0)-3, 7, 7);
+            G.fillOval((int)((x/2.0) + 6 * Math.cos(heading))-1, 
+                       (int)((y/2.0) - 6 * Math.sin(heading))-1, // minus to preserve counterclockwise (trigonometric) heading when y grows downwards..
                         2,2);
     }
 

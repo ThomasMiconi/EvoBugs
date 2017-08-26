@@ -6,6 +6,9 @@ public class Item
     double y;
     Random R;
     World myw;
+    public Item() // No-arg constructor for serialization
+    {
+    }
     public Item(World w)
     {
         myw = w;
