@@ -93,6 +93,9 @@ public class Agent extends Item implements java.io.Serializable , Comparable<Age
         MULTOTHER = R.nextDouble();
         for (int ii=0; ii < myworld.NBNEUR; ii++)
             validneur[ii]= R.nextInt(2);
+        // 0: speed. 1: turn. 2: fight. 4-7: sensors (food and others). 8: own energy. 9: other's aggro. 10: bias
+        // 0 and 2 are explin, guaranteed to be positive. Others are tanh.
+        validneur[0]=1; validneur[1]=1;
     }
     public void resetNeurons() { 
         for (int n=0; n<myworld.NBNEUR; n++){
@@ -155,6 +158,7 @@ public class Agent extends Item implements java.io.Serializable , Comparable<Age
         for (int ii=0; ii < myworld.NBNEUR; ii++)
             if (R.nextDouble() < myworld.PROBAMUT)
                 validneur[ii] = 1 - validneur[ii];
+        validneur[0]=1; validneur[1]=1;
         for (int ii=0; ii < myworld.NBNEUR; ii++)
             for (int jj=0; jj < myworld.NBNEUR; jj++)
             {
@@ -197,6 +201,8 @@ public class Agent extends Item implements java.io.Serializable , Comparable<Age
         double dist, angle;
         int sensorR, sensorL;
         age++;
+        // 0: speed. 1: turn. 2: fight. 4-7: sensors (food and others). 8: own energy. 9: other's aggro. 10: bias
+        // 0 and 2 are explin, guaranteed to be positive. Others are tanh.
         neury[10] = 1.0;  // Bias
         neury[8] = 0.0;
         neury[9] = 0.0; // 2.0 * (myworld.POISONFIRSTHALF - .5);
@@ -232,9 +238,8 @@ public class Agent extends Item implements java.io.Serializable , Comparable<Age
 
         }
         double mindist = 10000.0;
-        for (Iterator<Agent> iter = myworld.population.listIterator() ; iter.hasNext(); )
+        for (Agent other: myworld.population)
         {
-            Agent other = iter.next();
             if (other == this)
                 continue;
             dist = getDistanceFrom(other); // Note that this computes distance twice for each pair... inelegant.
@@ -254,17 +259,23 @@ public class Agent extends Item implements java.io.Serializable , Comparable<Age
 
             if (dist < myworld.EATRADIUS)  // Sufficiently close to fight?
             {
+                if (other.energy < 0)
+                    continue;
                 //neury[9] +=  myworld.FIGHTNOISE * other.fight; // You can "hear" other's aggro if it's close enough to hurt you
-                other.energy -= myworld.FIGHTDAMAGE * (fight - other.fight);  // Note that the fighting is based on the previous step's activity... Some will already be updated, others not!
+
+                double fightdamage = myworld.FIGHTDAMAGE * (fight - other.fight);
+                if (fightdamage < 0)
+                    fightdamage = 0;
+                other.energy -= fightdamage; // Note that the fighting is based on the previous step's activity... Some will already be updated, others not!
+                
+                
                 if ((other.energy < 0) && (fight > other.fight) && (myworld.population.size() > myworld.POPSIZEMIN))
                 {
-                    iter.remove();  
+                    // No removals! Removals must be done by World.java, or whoever calls the update()
+                    //iter.remove();  
                     energy += myworld.EATBONUS;
                 }
                 
-
-                validneur = new int[myworld.NBNEUR]; for (int ii=0; ii < myworld.NBNEUR; ii++) validneur[ii] = 0;
-                validneur[0]= 1; validneur[1]=1; validneur[2] = 1; 
             }
         }
         if (mindist > 9999)
@@ -287,7 +298,7 @@ public class Agent extends Item implements java.io.Serializable , Comparable<Age
         }
         
         // Determine motion based on neural network outputs:
-        speed =  neury[0];  // Speed and fight are guaranteed to lie within [0,1]
+        speed =  neury[0];  // Speed and fight are guaranteed to be positive
         energy -= myworld.SPEEDENERGY * speed * speed;
         speed = myworld.AGENTSPEED * speed;
         rotation = myworld.AGENTANGULARSPEED * neury[1];

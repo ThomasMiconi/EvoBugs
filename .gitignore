@@ -1,3 +1,4 @@
+*.ser
 *.class
 *.txt
 *.pyc

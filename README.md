@@ -54,3 +54,24 @@ java World VISUAL 1 SEED 5 FIGHTENERGY .03 EATBONUS 100000.0 FIGHTDAMAGE 4.0 SPE
 Produces durable diversity in both pedigrees and visually....
 
 Apparently boring sessile/hunters, but ACTUALLY some of the "sessiles" turn out to become mobile + high-aggro when a hunter touches them!
+
+== 
+
+Fixed some bugs (fighting could result in positive energy increase to the other if the diff. between fight values was negative... Also some stray validneur statements).
+
+Also simplified the update loop... and randomizedupdate order!
+
+== 
+
+Massive bug fixing!
+
+java World VISUAL 1 SEED 5 FIGHTENERGY .03 EATBONUS 100000.0 FIGHTDAMAGE 4.0 SPEEDENERGY .003 ENERGYDECAY .995 WSIZE 3000 NEURENERGY 1e-6 FOODENERGY .6 
+Mostly similar : highly eficient food catchers, with non trivial, but rare aggro behaviors. When too close to another, they do a sharp move with aggo++, not clear if defensive of aggressive (or both?)
+
+Apparently some are aversive, and others hunting, during their close-by encounters!? B but all are mostly food-catchers...
+There is some diversity (60 lifetimes back, in a 800 lifetimes pedigree) but it's not clearly visible in phenotype: they all look very similar in behavior
+
+With NEURENERGY 2e-7, much more diversity in phenotypes (clearly high-aggro and low-aggro behaviors, though not clear if it's not different phases of the same individuals!) But genetic diversity is similar, ~60 lifetimes! Also population somewhat smaller(??)
+
+
+

@@ -114,7 +114,7 @@ public class World {
             out.writeObject(population);
             out.close();
             fileOut.close();
-            System.out.printf("Serialized population data is saved in "+FNAME);
+            System.out.println("Serialized population data is saved in "+FNAME);
         }catch(IOException i) {
             i.printStackTrace();
         }
@@ -161,6 +161,8 @@ public class World {
         //for (int ttt=0; ttt < 10000; ttt++)
         {
             //System.out.println(ttt);
+            if ((numstep + 1) % 10 == 0)
+                Collections.shuffle(population);
             // Crude approximation of Poisson distribution
             for (int nn=0; nn < 100; nn++)
                 if (R.nextDouble() < MEANADDEDFOODPERSTEP / 100.0)
@@ -183,22 +185,10 @@ public class World {
                     iter.remove();
             }*/
 
-            // The difficulty here is that update() can remove agents from the
-            // population. This would confuse both a for loop and an iterator.
-            // So we need to do the looping ourselves.
-            // NOTE: maybe a better way would be to just determine energy transfers in Agent.java's update(), and do all the actual removals here?...
             for (Agent a: population)
-                a.isUpdated = false;
-            while (true){
-                // Find un-updated agent
-                Agent a = null;
-                for (Agent a2:population)
-                    if (a2.isUpdated == false)
-                        a = a2;
-                if (a == null) break;
-                // Update!
+            {
                 if ((a.age > MINIMUMREPRODELAY) && (R.nextDouble() < PROBAREPRO)){
-                    // Reproduction!
+                    // Reproduction! Children are added to a temporary list, then added to the actual population after the loop.
                     Agent child  = new Agent(this, nbagents++);
                     child.copyFrom(a);
                     child.pedigree.add(new Long(a.num));
@@ -208,15 +198,15 @@ public class World {
                     children.add(child);
                 }
                 a.update();
-                a.isUpdated = true;
             }
-            // Removing agents with energy <0 (that were not already removed due to fighting by update())
+            // Removing agents with energy <0 (whether from starvation or fighting)
             for (Iterator<Agent> iter = population.listIterator(); iter.hasNext(); ) 
             {
                 Agent a = iter.next();
                 if ((a.getEnergy() < 0) && (population.size() > POPSIZEMIN))
                     iter.remove();
             }
+            // We add the children after the loop to avoid trouble
             while (children.size() > 0)
                 population.add(children.pop());
 
