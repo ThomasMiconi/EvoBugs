@@ -46,13 +46,13 @@ public class MyFrame extends Frame implements ActionListener {
         scorelabel = new Label(); scorelabel.setText("Score: 0");
         scorelabel.setPreferredSize(new Dimension(100, 25));
         b1.addActionListener(this); b2.addActionListener(this); b3.addActionListener(this); b4.addActionListener(this);
-        add(tf1);add(b1);add(b2); add(scorelabel); add(b3); add(b4);
+        add(tf1);add(b1);add(b2); add(scorelabel); //add(b3); add(b4);
         cnv = new MyNewCanvas(this.myWorld);
         add(cnv);
         addWindowListener ( new WindowAdapter() {
             public void windowClosing ( WindowEvent evt ) {
-                if (myWorld.outputfilewriter != null)
-                    myWorld.outputfilewriter.close();
+                /*if (myWorld.outputfilewriter != null)
+                    myWorld.outputfilewriter.close();*/
                 System.exit ( 0 );
             }
         } );
@@ -67,10 +67,6 @@ public class MyFrame extends Frame implements ActionListener {
         }else if(e.getSource()==b2){  
             if (myWorld.delay >= 20)
                 myWorld.delay-=20;  
-        }else if(e.getSource()==b3){  
-            myWorld.savePop();
-        }else if(e.getSource()==b4){  
-            myWorld.readPop();
         }            
         tf1.setText(Integer.toString(myWorld.delay));
     }
